@@ -19,13 +19,13 @@ from pandas.tslib import Timedelta
 
 from zipline.testing.fixtures import (
     ZiplineTestCase,
-    WithNYSETradingDays,
+    WithTradingSessions,
     WithDataPortal
 )
 
 
 class TestDataPortal(WithDataPortal,
-                     WithNYSETradingDays,
+                     WithTradingSessions,
                      ZiplineTestCase):
 
     ASSET_FINDER_EQUITY_SIDS = (1,)
