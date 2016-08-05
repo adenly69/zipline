@@ -37,7 +37,7 @@ class TestDataPortal(WithDataPortal,
     @classmethod
     def make_equity_minute_bar_data(cls):
         # No data on first day.
-        dts = cls.trading_calendar.minutes_for_session(cls.trading_days[0])
+        dts = cls.equities_calendar.minutes_for_session(cls.trading_days[0])
         dfs = []
         dfs.append(pd.DataFrame(
             {
@@ -48,7 +48,7 @@ class TestDataPortal(WithDataPortal,
                 'volume': full(len(dts), 0),
             },
             index=dts))
-        dts = cls.trading_calendar.minutes_for_session(cls.trading_days[1])
+        dts = cls.equities_calendar.minutes_for_session(cls.trading_days[1])
         dfs.append(pd.DataFrame(
             {
                 'open': append(100.5, full(len(dts) - 1, nan)),
@@ -58,7 +58,7 @@ class TestDataPortal(WithDataPortal,
                 'volume': append(1000, full(len(dts) - 1, nan)),
             },
             index=dts))
-        dts = cls.trading_calendar.minutes_for_session(cls.trading_days[2])
+        dts = cls.equities_calendar.minutes_for_session(cls.trading_days[2])
         dfs.append(pd.DataFrame(
             {
                 'open': [nan, 103.50, 102.50, 104.50, 101.50, nan],
@@ -69,7 +69,7 @@ class TestDataPortal(WithDataPortal,
             },
             index=dts[:6]
         ))
-        dts = cls.trading_calendar.minutes_for_session(cls.trading_days[3])
+        dts = cls.equities_calendar.minutes_for_session(cls.trading_days[3])
         dfs.append(pd.DataFrame(
             {
                 'open': full(len(dts), nan),
@@ -82,46 +82,40 @@ class TestDataPortal(WithDataPortal,
         yield 1, pd.concat(dfs)
 
     def test_get_last_traded_minute(self):
-        # dt cases:
-        # dt == last traded.
-        # last traded is 1 before dt.
-        # last traded is two before dt.
-        # no last_traded
-        dts = self.trading_calendar.minutes_for_session(self.trading_days[0])
+        # Case: Missing data at front of data set, and request dt is before
+        # first value.
+        dts = self.equities_calendar.minutes_for_session(self.trading_days[0])
         asset = self.asset_finder.retrieve_asset(1)
         self.assertTrue(pd.isnull(
             self.data_portal.get_last_traded_dt(
                 asset, dts[0], 'minute')))
 
-        dts = self.trading_calendar.minutes_for_session(self.trading_days[2])
+        # Case: Data on requested dt.
+        dts = self.equities_calendar.minutes_for_session(self.trading_days[2])
 
         self.assertEqual(dts[1],
                          self.data_portal.get_last_traded_dt(
                              asset, dts[1], 'minute'))
 
-        # Last slot is null.
+        # Case: No data on dt, but data occuring before dt.
         self.assertEqual(dts[4],
                          self.data_portal.get_last_traded_dt(
                              asset, dts[5], 'minute'))
-        # asset cases:
-        # equities, futures
 
     def test_get_last_traded_dt_daily(self):
-        # dt cases:
-        # dt == last traded.
-        # last traded is 1 before dt.
-        # last traded is two before dt.
-        # no last_traded
+        # Case: Missing data at front of data set, and request dt is before
+        # first value.
         asset = self.asset_finder.retrieve_asset(1)
         self.assertTrue(pd.isnull(
             self.data_portal.get_last_traded_dt(
                 asset, self.trading_days[0], 'daily')))
 
+        # Case: Data on requested dt.
         self.assertEqual(self.trading_days[1],
                          self.data_portal.get_last_traded_dt(
                              asset, self.trading_days[1], 'daily'))
 
-        # Last slot is null.
+        # Case: No data on dt, but data occuring before dt.
         self.assertEqual(self.trading_days[2],
                          self.data_portal.get_last_traded_dt(
                              asset, self.trading_days[3], 'daily'))
