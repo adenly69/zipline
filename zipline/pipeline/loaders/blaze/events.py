@@ -67,7 +67,8 @@ class BlazeEventsLoader(PipelineLoader):
                  resources=None,
                  odo_kwargs=None,
                  data_query_time=None,
-                 data_query_tz=None):
+                 data_query_tz=None,
+                 loader=EventsLoader):
 
         dshape = expr.dshape
         if not istabular(dshape):
@@ -88,6 +89,7 @@ class BlazeEventsLoader(PipelineLoader):
         check_data_query_args(data_query_time, data_query_tz)
         self._data_query_time = data_query_time
         self._data_query_tz = data_query_tz
+        self.loader = loader
 
     def load_adjusted_array(self, columns, dates, assets, mask):
         data_query_time = self._data_query_time
@@ -119,7 +121,7 @@ class BlazeEventsLoader(PipelineLoader):
                 ts_field=TS_FIELD_NAME,
             )
 
-        return EventsLoader(
+        return self.loader(
             events=raw,
             next_value_columns=self._next_value_columns,
             previous_value_columns=self._previous_value_columns,
