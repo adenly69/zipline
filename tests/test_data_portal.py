@@ -17,6 +17,7 @@ from numpy import nan, full, append
 import pandas as pd
 from pandas.tslib import Timedelta
 
+from zipline.assets import Asset, Future, Equity
 from zipline.testing.fixtures import (
     ZiplineTestCase,
     WithTradingSessions,
@@ -29,15 +30,22 @@ class TestDataPortal(WithDataPortal,
                      ZiplineTestCase):
 
     ASSET_FINDER_EQUITY_SIDS = (1,)
+    ASSET_FINDER_FUTURE_SIDS = (100000,)
     START_DATE = pd.Timestamp('2016-08-01')
     END_DATE = pd.Timestamp('2016-08-04')
 
     EQUITY_DAILY_BAR_SOURCE_FROM_MINUTE = True
 
+    asset_pricing_pad = {
+        1: 1000,
+        100000: 10000
+        }
+
     @classmethod
-    def make_equity_minute_bar_data(cls):
+    def minute_bar_data(cls, asset):
+        trading_calendar = cls.trading_calendars[type(asset)]
         # No data on first day.
-        dts = cls.equities_calendar.minutes_for_session(cls.trading_days[0])
+        dts = trading_calendar.minutes_for_session(cls.trading_days[0])
         dfs = []
         dfs.append(pd.DataFrame(
             {
@@ -48,7 +56,7 @@ class TestDataPortal(WithDataPortal,
                 'volume': full(len(dts), 0),
             },
             index=dts))
-        dts = cls.equities_calendar.minutes_for_session(cls.trading_days[1])
+        dts = trading_calendar.minutes_for_session(cls.trading_days[1])
         dfs.append(pd.DataFrame(
             {
                 'open': append(100.5, full(len(dts) - 1, nan)),
@@ -58,7 +66,7 @@ class TestDataPortal(WithDataPortal,
                 'volume': append(1000, full(len(dts) - 1, nan)),
             },
             index=dts))
-        dts = cls.equities_calendar.minutes_for_session(cls.trading_days[2])
+        dts = trading_calendar.minutes_for_session(cls.trading_days[2])
         dfs.append(pd.DataFrame(
             {
                 'open': [nan, 103.50, 102.50, 104.50, 101.50, nan],
@@ -69,7 +77,7 @@ class TestDataPortal(WithDataPortal,
             },
             index=dts[:6]
         ))
-        dts = cls.equities_calendar.minutes_for_session(cls.trading_days[3])
+        dts = trading_calendar.minutes_for_session(cls.trading_days[3])
         dfs.append(pd.DataFrame(
             {
                 'open': full(len(dts), nan),
@@ -79,19 +87,24 @@ class TestDataPortal(WithDataPortal,
                 'volume': full(len(dts), 0),
             },
             index=dts))
-        yield 1, pd.concat(dfs)
+        return pd.concat(dfs)
+
+    @classmethod
+    def make_equity_minute_bar_data(cls):
+        yield 1, cls.minute_bar_data(cls.asset_finder.retrieve_asset(1))
 
     def test_get_last_traded_minute(self):
         # Case: Missing data at front of data set, and request dt is before
         # first value.
-        dts = self.equities_calendar.minutes_for_session(self.trading_days[0])
+        trading_calendar = self.trading_calendars[Equity]
+        dts = trading_calendar.minutes_for_session(self.trading_days[0])
         asset = self.asset_finder.retrieve_asset(1)
         self.assertTrue(pd.isnull(
             self.data_portal.get_last_traded_dt(
                 asset, dts[0], 'minute')))
 
         # Case: Data on requested dt.
-        dts = self.equities_calendar.minutes_for_session(self.trading_days[2])
+        dts = trading_calendar.minutes_for_session(self.trading_days[2])
 
         self.assertEqual(dts[1],
                          self.data_portal.get_last_traded_dt(
